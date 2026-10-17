@@ -1,0 +1,104 @@
+package me.wenaco.burpmcp
+
+import me.wenaco.burpmcp.mcp.Dispatcher
+import me.wenaco.burpmcp.mcp.JsonRpcRequest
+import me.wenaco.burpmcp.mcp.Tool
+import me.wenaco.burpmcp.mcp.ToolOutput
+import me.wenaco.burpmcp.mcp.ToolRegistry
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+private class EchoTool(override val name: String = "echo") : Tool {
+    override val description = "echo x"
+    override val inputSchema = buildJsonObject {}
+    override fun execute(arguments: JsonObject) =
+        arguments["x"]?.jsonPrimitive?.content ?: "<none>"
+}
+
+private class StructuredTool(override val name: String = "structured") : Tool {
+    override val description = "emits structuredContent"
+    override val inputSchema = buildJsonObject {}
+    override fun execute(arguments: JsonObject) = "text-form"
+    override fun run(arguments: JsonObject) =
+        ToolOutput("text-form", buildJsonObject { put("ok", true) })
+}
+
+private class BoomTool(override val name: String = "boom") : Tool {
+    override val description = "throws"
+    override val inputSchema = buildJsonObject {}
+    override fun execute(arguments: JsonObject): String = error("kaboom")
+}
+
+class DispatcherTest {
+    private fun disp() = Dispatcher(
+        ToolRegistry().register(EchoTool()).register(BoomTool()).register(StructuredTool()),
+        serverName = "wenaco", serverVersion = "test", protocolVersion = "2024-11-05",
+    )
+
+    private fun req(method: String, params: JsonObject? = null) =
+        JsonRpcRequest(id = JsonPrimitive(1), method = method, params = params)
+
+    @Test fun initializeReturnsServerInfo() {
+        val r = disp().dispatch(req("initialize"))!!
+        val res = r.result!!.jsonObject
+        assertEquals("2024-11-05", res["protocolVersion"]!!.jsonPrimitive.content)
+        assertEquals("wenaco", res["serverInfo"]!!.jsonObject["name"]!!.jsonPrimitive.content)
+    }
+
+    @Test fun toolsListReturnsRegistered() {
+        val r = disp().dispatch(req("tools/list"))!!
+        val names = r.result!!.jsonObject["tools"]!!.jsonArray.map { it.jsonObject["name"]!!.jsonPrimitive.content }
+        assertEquals(listOf("echo", "boom", "structured"), names)
+    }
+
+    @Test fun toolsCallExecutes() {
+        val params = buildJsonObject {
+            put("name", "echo")
+            put("arguments", buildJsonObject { put("x", "hi") })
+        }
+        val r = disp().dispatch(req("tools/call", params))!!
+        val res = r.result!!.jsonObject
+        assertEquals(false, res["isError"]!!.jsonPrimitive.content.toBoolean())
+        assertEquals("hi", res["content"]!!.jsonArray[0].jsonObject["text"]!!.jsonPrimitive.content)
+    }
+
+    @Test fun toolErrorBecomesIsError() {
+        val params = buildJsonObject { put("name", "boom") }
+        val r = disp().dispatch(req("tools/call", params))!!
+        assertTrue(r.result!!.jsonObject["isError"]!!.jsonPrimitive.content.toBoolean())
+    }
+
+    @Test fun structuredContentPresentWhenToolProvidesIt() {
+        val params = buildJsonObject { put("name", "structured") }
+        val res = disp().dispatch(req("tools/call", params))!!.result!!.jsonObject
+        assertEquals("text-form", res["content"]!!.jsonArray[0].jsonObject["text"]!!.jsonPrimitive.content)
+        assertEquals(true, res["structuredContent"]!!.jsonObject["ok"]!!.jsonPrimitive.content.toBoolean())
+    }
+
+    @Test fun structuredContentAbsentForPlainTool() {
+        val params = buildJsonObject {
+            put("name", "echo")
+            put("arguments", buildJsonObject { put("x", "hi") })
+        }
+        val res = disp().dispatch(req("tools/call", params))!!.result!!.jsonObject
+        assertNull(res["structuredContent"])
+    }
+
+    @Test fun unknownMethodErrors() {
+        val r = disp().dispatch(req("nope"))!!
+        assertEquals(-32601, r.error!!.code)
+    }
+
+    @Test fun notificationReturnsNull() {
+        assertNull(disp().dispatch(req("notifications/initialized")))
+    }
+}
