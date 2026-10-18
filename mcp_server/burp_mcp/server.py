@@ -1,4 +1,4 @@
-"""Entry point for your Burp MCP server.
+"""Entry point for Burp MCP server.
 
 Architecture: this process is an MCP server to Claude (stdio), and an MCP
 *client* to the Burp extension in ../../extension (SSE, running inside

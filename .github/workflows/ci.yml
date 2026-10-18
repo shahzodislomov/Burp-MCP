@@ -19,3 +19,16 @@ jobs:
         with:
           name: burp-mcp-extension
           path: extension/build/libs/*.jar
+  mcp-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        working-directory: mcp_server
+        run: pip install -r requirements.txt
+      - name: Run Python unit tests
+        working-directory: mcp_server
+        run: python -m unittest discover -s tests -v
