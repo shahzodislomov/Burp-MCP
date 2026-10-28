@@ -29,6 +29,7 @@ from burp_mcp.tools import (
     scope_tools,
     send_to_tools,
     transform_tool,
+    workflow_tools,
 )
 
 mcp = MCPServer(
@@ -53,6 +54,7 @@ control_tools.register(mcp)
 config_tools.register(mcp)
 burp_utility_tools.register(mcp)
 transform_tool.register(mcp)
+workflow_tools.register(mcp)
 
 
 def main() -> None:
