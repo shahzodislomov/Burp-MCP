@@ -39,6 +39,7 @@ EXPECTED_TOOLS = {
     "list_burp_tools",
     "call_burp_tool",
     "transform_text",
+    "scan_results_workflow",
 }
 
 
@@ -46,8 +47,8 @@ class ToolRegistrationTests(unittest.TestCase):
     def test_all_expected_tools_register_once_with_kotlin_property_types(self) -> None:
         tools = asyncio.run(mcp.list_tools())
         names = [tool.name for tool in tools]
-        self.assertEqual(len(names), 33)
-        self.assertEqual(len(set(names)), 33)
+        self.assertEqual(len(names), 34)
+        self.assertEqual(len(set(names)), 34)
         self.assertEqual(set(names), EXPECTED_TOOLS)
 
         by_name = {tool.name: tool for tool in tools}
