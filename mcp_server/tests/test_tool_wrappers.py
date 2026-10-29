@@ -18,6 +18,7 @@ from burp_mcp.tools import (
     scan_tools,
     scope_tools,
     send_to_tools,
+    workflow_tools,
 )
 
 CALLS = {
@@ -77,6 +78,7 @@ TOOL_MODULES = (
     scan_tools,
     scope_tools,
     send_to_tools,
+    workflow_tools,
 )
 
 
@@ -119,6 +121,34 @@ class ToolWrapperTests(unittest.IsolatedAsyncioTestCase):
         FakeBurpProxy.error = RuntimeError("upstream failed")
         with self.assertRaises(UnexpectedToolError):
             await mcp.call_tool("scope_check", {"url": "https://scope.test/"})
+
+    async def test_scan_results_workflow_returns_status_and_issues(self) -> None:
+        result = await mcp.call_tool(
+            "scan_results_workflow",
+            {"scan_id": "scan-1", "min_severity": "HIGH", "detail": True},
+        )
+
+        self.assertEqual(
+            FakeBurpProxy.calls,
+            [
+                ("scan_status", {"scan_id": "scan-1"}),
+                (
+                    "get_scanner_issues",
+                    {"scan_id": "scan-1", "min_severity": "HIGH", "detail": True},
+                ),
+            ],
+        )
+        self.assertIn('"scan_id": "scan-1"', result.content[0].text)
+        self.assertIn('"status": "result:scan_status"', result.content[0].text)
+        self.assertIn('"issues": "result:get_scanner_issues"', result.content[0].text)
+
+    async def test_scan_results_workflow_stops_on_upstream_error(self) -> None:
+        FakeBurpProxy.error = RuntimeError("upstream failed")
+
+        with self.assertRaises(UnexpectedToolError):
+            await mcp.call_tool("scan_results_workflow", {"scan_id": "scan-1"})
+
+        self.assertEqual(FakeBurpProxy.calls, [("scan_status", {"scan_id": "scan-1"})])
 
 
 if __name__ == "__main__":
