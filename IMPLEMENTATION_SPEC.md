@@ -23,10 +23,10 @@ This connects the MCP client straight to the Kotlin extension running inside Bur
 
 ```sh
 cd mcp_server
-claude mcp add wenaco -- python -m burp_mcp.server
+claude mcp add wenaco -- python3 /absolute/path/to/burp-mcp/mcp_server/start_server.py
 ```
 
-This starts the Python server over stdio. Python connects to the Burp extension at `BURP_MCP_URL` and exposes all 30 Kotlin tools by their individual names, plus `list_burp_tools`, `call_burp_tool`, the standalone `transform_text` utility, and `scan_results_workflow`.
+This starts the Python server over stdio. The launcher selects the project's virtual environment and working directory. Python connects to the Burp extension at `BURP_MCP_URL` and exposes all 30 Kotlin tools by their individual names, plus `list_burp_tools`, `call_burp_tool`, the standalone `transform_text` utility, and `scan_results_workflow`.
 
 If you implement the wrappers in this plan, the Python path can expose the 30 Burp operations individually. Keep both paths only if you want to support both experiences. Do not configure two servers with the same client-side name at once; choose one connection method per client configuration.
 
