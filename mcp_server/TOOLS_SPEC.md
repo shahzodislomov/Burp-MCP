@@ -142,16 +142,13 @@ Expose Kotlin's `transform` and `random_string` operations:
 
 This module connects to Burp via `BurpProxy`, unlike `transform_tool.py`, which is a pure Python utility called `transform_text`.
 
-## Python-Only Modules (Planned, Not Registered Today)
+## Python-Only Modules
 
 These modules exist as empty placeholders. They are optional additions, not required to call the 30 Kotlin tools. If implemented, each should define `register(mcp)` and be explicitly imported and registered in `server.py`. Keep their proposed behavior small and deterministic.
 
-### `workflow_tools.py` - empty and not registered
+### `workflow_tools.py` - registered
 
-Use for a named, multi-step convenience workflow that composes existing Kotlin calls through `BurpProxy`; do not create new network behavior. Suitable examples:
-
-- A scope-aware request workflow that calls Kotlin `scope_check`, then calls Kotlin `send_http_request` only when the URL is in scope. The extension's own scope guard remains required and authoritative.
-- A scan collection workflow that starts a scan, retains its scan ID, and lets the caller request status/issues. Avoid unbounded polling or silently starting another scan.
+Use for named, multi-step convenience workflows that compose existing Kotlin calls through `BurpProxy`; do not create new network behavior. The current `scan_results_workflow` accepts an existing `scan_id`, calls Kotlin `scan_status` and `get_scanner_issues`, and returns both results. It does not start or poll scans.
 
 Workflow input should make side effects explicit. Return constituent results and identifiers so the user can see what ran. Do not automatically fuzz, actively scan, alter configuration, or send batches without a clear user invocation.
 
@@ -175,22 +172,19 @@ Kotlin's `generate_report` is a separate Burp Scanner report operation and remai
 
 `mcp_server/burp_mcp/server.py` creates the MCP server and calls each registered module's `register(mcp)` once. The typed Kotlin wrapper modules and the generic passthrough are needed for the current Python-server design. The pure-Python `transform_tool` is also registered.
 
-The Python-only `workflow_tools`, `analysis_tools`, and `report_tools` should be registered only after they contain working tools; empty modules do not provide the required `register(mcp)` function. Keep every registered MCP tool name unique. The standalone `transform_text` and Kotlin-backed `transform` are intentionally distinct.
+The Python-only `analysis_tools` and `report_tools` should be registered only after they contain working tools. Keep every registered MCP tool name unique. The standalone `transform_text` and Kotlin-backed `transform` are intentionally distinct.
 
-At the time this spec was written, `server.py` imports `scope_tools`, but that file is missing. Restore it before attempting to launch the Python server. Several other wrapper modules are present but empty, so the currently claimed complete 33-tool Python interface is not yet available in this tree.
+The wrapper modules and `scope_tools.py` are implemented and registered. The Python server exposes 34 unique tools: the 30 Kotlin-backed wrappers, two passthrough tools, `transform_text`, and `scan_results_workflow`.
 
-## Implementation and Verification Order
+## Verification and Optional Follow-up
 
-1. Implement `scope_tools.py` first so `server.py` can import successfully.
-2. Implement each Kotlin-backed wrapper module, using Kotlin schemas as the source of truth.
-3. Add or update registration and wrapper tests. Tests should use a fake `BurpProxy` and verify exact forwarding, results, and error propagation; they must not send requests to a target.
-4. Run Python unit tests from `mcp_server`:
+1. Run Python unit tests from `mcp_server`:
 
    ```sh
    .venv/bin/python -m unittest discover -s tests -v
    ```
 
-5. With Burp and the extension running, call `list_burp_tools` and verify the live Kotlin inventory. Exercise only harmless tools during a smoke test.
-6. Implement optional workflow/analysis/report tools after the pass-through/wrapper layer works, then register and test each one.
+2. With Burp and the extension running, call `list_burp_tools` and verify the live Kotlin inventory. Exercise only harmless tools during a smoke test.
+3. Optional analysis/report tools may be added after defining their concrete use case; register and test each one.
 
 Python wrapper tests cannot prove the Kotlin implementation is correct; retain the Kotlin unit/integration suite and test traffic-producing behavior only against an authorized in-scope lab.
