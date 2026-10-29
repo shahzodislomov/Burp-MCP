@@ -13,11 +13,14 @@ http://127.0.0.1:9262/          <-- note: root path "/", NOT "/sse"
 
 You can connect clients directly to this SSE endpoint, or use the Python stdio
 server in `mcp_server/`. The direct path exposes 30 Kotlin tools; the Python
-path exposes those same 30 tools individually, the two generic passthroughs, and
-`transform_text` (33 tools total). Choose one path per client configuration.
-For the Python path, set `BURP_MCP_URL` if the extension uses a non-default port
-and `BURP_MCP_TOKEN` when Burp requires a bearer token, then configure the
-client to launch `python -m burp_mcp.server` from `mcp_server/` with its venv.
+path exposes those same 30 tools individually, the two generic passthroughs,
+`transform_text`, and `scan_results_workflow` (34 tools total). Choose one path
+per client configuration. For the Python path, install its requirements once,
+then configure the client to launch `python3` with the absolute path to
+`mcp_server/start_server.py`. The launcher selects the project's venv, so no
+shell activation or working-directory setting is needed. Set `BURP_MCP_URL` if
+the extension uses a non-default port and `BURP_MCP_TOKEN` when Burp requires a
+bearer token in the client's MCP server environment.
 
 Load the extension in Burp first (Extensions > Add > Java > the jar). When the
 Output tab shows `ready -> http://127.0.0.1:9262/`, connect a client:
@@ -104,8 +107,13 @@ Any direct SSE client: after connecting, list tools — you should see 30, e.g.
 `send_http_request`, `fuzz`, `start_active_scan`. A quick no-target check is
 `random_string` (length 8) or `transform` (base64_encode).
 
-The Python stdio server should list 33 tools, including the same Burp tool names
-and `transform_text`.
+The Python stdio server should list 34 tools, including the same Burp tool names,
+`transform_text`, and `scan_results_workflow`. Register it with the absolute
+launcher path, for example:
+
+```bash
+claude mcp add wenaco -- python3 /absolute/path/to/burp-mcp/mcp_server/start_server.py
+```
 
 Raw check without a client (proves the server is up):
 
