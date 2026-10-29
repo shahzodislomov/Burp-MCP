@@ -29,28 +29,37 @@ In Burp: Extensions tab -> Add -> Extension Type: Java -> pick that jar.
 
 ```bash
 cd mcp_server
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python -m burp_mcp.server
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+python3 start_server.py
 ```
 
-Point your MCP client at it, e.g. for Claude Code (run from `mcp_server/`
-with the venv active):
+To configure Claude Code, register the launcher by absolute path. Claude Code
+starts the Python process automatically when it starts the MCP server:
 
 ```bash
-claude mcp add wenaco -- python -m burp_mcp.server
+claude mcp add wenaco -- python3 /absolute/path/to/burp-mcp/mcp_server/start_server.py
 ```
+
+See [`mcp_server/README.md`](mcp_server/README.md) for client environment
+configuration and other usage details.
 
 ## Python tool interface
 
-The Python stdio server registers 33 unique tools: all 30 existing Kotlin Burp
-tools by name, `list_burp_tools` / `call_burp_tool` as generic fallbacks, and
-the standalone `transform_text` utility. Burp operations remain in the Kotlin
-extension and continue to use its scope and ROE protections. See
+The Python stdio server registers 34 unique tools: all 30 existing Kotlin Burp
+tools by name, `list_burp_tools` / `call_burp_tool` as generic fallbacks,
+`transform_text`, and the `scan_results_workflow` convenience workflow. Burp
+operations remain in the Kotlin extension and continue to use its scope and ROE
+protections. See
 [`mcp_server/README.md`](mcp_server/README.md) for configuration and tests.
 
-Run the offline Python suite with `mcp_server/.venv/bin/python -m unittest
-discover -s mcp_server/tests -v` after installing `mcp_server/requirements.txt`.
+Run the offline Python suite from the repository root after installing
+`mcp_server/requirements.txt`:
+
+```bash
+cd mcp_server
+.venv/bin/python -m unittest discover -s tests -v
+```
 
 ## Next steps to make this actually yours
 
@@ -77,3 +86,4 @@ pattern works and how to merge in tools from other repos.
 | Var             | Default                     | Meaning                               |
 |------------------|------------------------------|----------------------------------------|
 | `BURP_MCP_URL`   | `http://127.0.0.1:9262/`    | the extension's SSE endpoint            |
+| `BURP_MCP_TOKEN` | unset                        | optional bearer token configured in Burp |
