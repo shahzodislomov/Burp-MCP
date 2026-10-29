@@ -2,9 +2,9 @@
 
 This document records the implementation plan and extension guidance. The Python wrapper work described below is now implemented; the remaining guidance applies to future changes and live integration checks.
 
-Implementation status (2026-10-17): the Python stdio server exposes all 30 typed Kotlin wrappers plus `list_burp_tools`, `call_burp_tool`, and `transform_text`; bearer-token headers and structured results are supported. Offline `unittest` coverage passes. A live Burp connection check still requires Burp with the extension loaded.
+Implementation status (2026-10-29): the Python stdio server exposes all 30 typed Kotlin wrappers plus `list_burp_tools`, `call_burp_tool`, `transform_text`, and `scan_results_workflow` (34 tools total). Bearer-token headers and structured results are supported. Offline `unittest` coverage passes. A live Burp connection check still requires Burp with the extension loaded.
 
-The existing Kotlin extension already registers 30 tools. Do not rewrite those tools just to make this project feel complete. The meaningful remaining work is to decide which client path to support, finish the optional Python wrapper layer, test it, and then add capabilities that are specific to your use case.
+The existing Kotlin extension registers 30 tools. Do not rewrite those tools just to make this project feel complete. The wrapper layer and offline tests are implemented; remaining verification is the live Burp smoke test, followed by any capabilities specific to your use case.
 
 ## 1. Choose the Client Path
 
@@ -26,7 +26,7 @@ cd mcp_server
 claude mcp add wenaco -- python -m burp_mcp.server
 ```
 
-This starts the Python server over stdio. Python connects to the Burp extension at `BURP_MCP_URL` and exposes all 30 Kotlin tools by their individual names, plus `list_burp_tools`, `call_burp_tool`, and the standalone `transform_text` utility.
+This starts the Python server over stdio. Python connects to the Burp extension at `BURP_MCP_URL` and exposes all 30 Kotlin tools by their individual names, plus `list_burp_tools`, `call_burp_tool`, the standalone `transform_text` utility, and `scan_results_workflow`.
 
 If you implement the wrappers in this plan, the Python path can expose the 30 Burp operations individually. Keep both paths only if you want to support both experiences. Do not configure two servers with the same client-side name at once; choose one connection method per client configuration.
 
@@ -98,7 +98,7 @@ Update `mcp_server/burp_mcp/server.py` to:
 
 There is a collision to resolve: the pure-Python `transform_tool.py` currently registers a tool named `transform`, and the Kotlin extension also has a tool named `transform`. To expose all 30 Kotlin tools under their exact names while retaining the Python utility, rename the Python utility to `transform_text` and expose the Kotlin-backed operation as `transform`. Update its docstring and tests to match. Do not register duplicate `transform` names.
 
-After this phase, the Python path should list 33 tools: the 30 individually named Kotlin-backed wrappers, `list_burp_tools`, `call_burp_tool`, and the pure-Python `transform_text` utility.
+After this phase, the Kotlin-backed wrappers and passthrough/utility tools list 33 names. The registered `scan_results_workflow` adds one Python-only tool, for 34 unique names total.
 
 ### Phase D: Make Python connection configuration complete
 
@@ -118,7 +118,7 @@ Create these Python tests:
 
 | New file | What it verifies |
 |---|---|
-| `mcp_server/tests/test_tool_registration.py` | All expected Python tool names register exactly once; expected total is 33 when all wrappers and `transform_text` are included. |
+| `mcp_server/tests/test_tool_registration.py` | All expected Python tool names register exactly once; expected total is 34 including `scan_results_workflow`. |
 | `mcp_server/tests/test_tool_wrappers.py` | Every wrapper forwards to the correct Kotlin name with the supplied arguments; results and errors are preserved. Use a fake `BurpProxy`. |
 | `mcp_server/tests/test_burp_proxy.py` | Default/overridden URL, optional token header, failed initialization cleanup, and tool error handling. Do not assert or print secret values. |
 
@@ -154,7 +154,7 @@ For a first complete Python interface:
 
 - `./gradlew test shadowJar` passes for the Kotlin extension.
 - Python tests pass without Burp running.
-- Python tool listing contains the expected 33 unique names.
+- Python tool listing contains the expected 34 unique names, including `scan_results_workflow`.
 - Each Kotlin-backed Python wrapper forwards to its exact Kotlin tool and matches the Kotlin input schema.
 - A live local test confirms Python can connect to a loaded extension and list all 30 Kotlin tools.
 - Optional bearer-token mode works without exposing the token in logs.
