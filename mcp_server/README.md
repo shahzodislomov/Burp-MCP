@@ -6,9 +6,10 @@ scope checks, and the ROE guard.
 
 ## Tools
 
-The server exposes 33 unique tools: all 30 Kotlin tools under their individual
+The server exposes 34 unique tools: all 30 Kotlin tools under their individual
 names, `list_burp_tools` and `call_burp_tool` as generic discovery/fallbacks,
-and `transform_text` as a standalone Python utility. The Kotlin-backed
+`transform_text` as a standalone Python utility, and `scan_results_workflow`
+for collecting status and issues for an existing scan. The Kotlin-backed
 `transform` name is distinct from `transform_text`.
 
 The wrappers are grouped in `burp_mcp/tools/` by HTTP/history, scanning,
@@ -21,20 +22,29 @@ Burp utilities. Each wrapper forwards to its matching extension tool through
 ```bash
 cd mcp_server
 python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python -m burp_mcp.server
+.venv/bin/python -m pip install -r requirements.txt
+python3 start_server.py
 ```
 
-Configure an MCP client for the stdio process, for example Claude Code from
-`mcp_server/` with the virtual environment active:
+`start_server.py` finds the project's virtual environment and sets the correct
+working directory, so it can also be started from outside `mcp_server/`. The
+server speaks MCP over stdio; stdout is reserved for protocol messages. When
+run manually, stop it with Ctrl+C.
+
+## Configure a Client
+
+Register the launcher by absolute path so the MCP client does not depend on an
+activated shell or a particular working directory:
 
 ```bash
-claude mcp add wenaco -- python -m burp_mcp.server
+claude mcp add wenaco -- python3 /absolute/path/to/burp-mcp/mcp_server/start_server.py
 ```
 
-The Python path is an alternative to connecting directly to Burp over SSE.
-Do not configure both with the same MCP server name in one client.
+Reload Claude Code and approve the server if prompted. The client starts and
+stops the Python process automatically. Other clients should use the same stdio
+command and argument, adding custom environment variables in their MCP server
+configuration. Do not configure this Python path and the direct Burp SSE path
+under the same server name in one client.
 
 ## Configuration
 
@@ -42,6 +52,10 @@ Do not configure both with the same MCP server name in one client.
 |---|---|---|
 | `BURP_MCP_URL` | `http://127.0.0.1:9262/` | Kotlin extension SSE endpoint |
 | `BURP_MCP_TOKEN` | unset | Bearer token matching Burp's `-Dburpmcp.token=...` |
+
+Set these in the MCP client's server environment when using a non-default URL
+or token. Do not commit a real token to the repository. Starting Python does
+not start Burp: load the extension in Burp before calling Burp-backed tools.
 
 ## Tests
 
