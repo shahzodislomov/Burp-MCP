@@ -47,7 +47,7 @@ def register(mcp) -> None:
         tests.
         """
         return await _call(
-            "run_fuzz",
+            "fuzz",
             host=host,
             port=port,
             template=template,
@@ -63,5 +63,5 @@ def register(mcp) -> None:
             match=match,
             filter_status=filter_status,
             extract=extract,
-            update_content_length=update_content_length
+            update_content_length=update_content_length,
         )
